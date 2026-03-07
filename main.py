@@ -41,13 +41,23 @@ class RobotDetector(Node):
         )
 
     def scan_callback(self, msg):
-        self.get_logger().info(
-            f"📦 Received scan: {len(msg.ranges)} points, "
-            f"angle range: {math.degrees(msg.angle_min):.1f}° to {math.degrees(msg.angle_max):.1f}°"
-        )
+        # self.get_logger().info(
+        #     f"📦 Received scan: {len(msg.ranges)} points, "
+        #     f"angle range: {math.degrees(msg.angle_min):.1f}° to {math.degrees(msg.angle_max):.1f}°"
+        # )
 
-        # Extract front sector data
+        self.get_logger().info(f"Full message:\n{msg}")
+
+        # # Print front points in detail
         front_points = self.get_front_sector(msg)
+        # for p in front_points[:5]:  # First 5 front points
+        #     self.get_logger().info(
+        #         f"  Point: x={p['x']:.2f}m, y={p['y']:.2f}m, "
+        #         f"distance={p['distance']:.2f}m, angle={p['angle']:.1f}°"
+        #     )
+
+        # # Extract front sector data
+        # front_points = self.get_front_sector(msg)
 
         if len(front_points) == 0:
             self.get_logger().info("Empty front sector data")
