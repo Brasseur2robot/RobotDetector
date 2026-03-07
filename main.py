@@ -46,18 +46,37 @@ class RobotDetector(Node):
         #     f"angle range: {math.degrees(msg.angle_min):.1f}° to {math.degrees(msg.angle_max):.1f}°"
         # )
 
-        self.get_logger().info(f"Full message:\n{msg}")
+        # Print detailed info only for first scan
+        if not hasattr(self, "_structure_printed"):
+            self.get_logger().info("=== LaserScan Structure ===")
+            self.get_logger().info(f"Frame: {msg.header.frame_id}")
+            self.get_logger().info(f"Points: {len(msg.ranges)}")
+            self.get_logger().info(
+                f"Angle range: {math.degrees(msg.angle_min):.1f}° to {math.degrees(msg.angle_max):.1f}°"
+            )
+            self.get_logger().info(
+                f"Angle step: {math.degrees(msg.angle_increment):.3f}°"
+            )
+            self.get_logger().info(
+                f"Distance range: {msg.range_min}m to {msg.range_max}m"
+            )
+            self.get_logger().info(f"Sample ranges: {msg.ranges[:10]}")
+            self.get_logger().info(f"Has intensities: {len(msg.intensities) > 0}")
+            self._structure_printed = True
 
-        # # Print front points in detail
+        # Extract front sector data
         front_points = self.get_front_sector(msg)
+        print(front_points)
+
+        # Full message
+        # self.get_logger().info(f"Full message:\n{msg}")
+
+        # Print front points in detail
         # for p in front_points[:5]:  # First 5 front points
         #     self.get_logger().info(
         #         f"  Point: x={p['x']:.2f}m, y={p['y']:.2f}m, "
         #         f"distance={p['distance']:.2f}m, angle={p['angle']:.1f}°"
         #     )
-
-        # # Extract front sector data
-        # front_points = self.get_front_sector(msg)
 
         if len(front_points) == 0:
             self.get_logger().info("Empty front sector data")
