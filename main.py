@@ -73,7 +73,6 @@ class RobotDetector(Node):
 
         # Extract front sector data
         front_points = self.get_front_sector(msg)
-        print(front_points)
 
         # Full message
         # self.get_logger().info(f"Full message:\n{msg}")
@@ -112,13 +111,6 @@ class RobotDetector(Node):
             marker_array.markers.append(marker)
             marker_id += 1
 
-            # Add text label
-            text_marker = self.create_text_marker(
-                cluster, marker_id, distance, width, is_target
-            )
-            marker_array.markers.append(text_marker)
-            marker_id += 1
-
         # Publish markers
         self.marker_pub.publish(marker_array)
 
@@ -155,41 +147,6 @@ class RobotDetector(Node):
             marker.color.b = 0.0
         else:
             marker.color.r = 1.0  # Yellow
-            marker.color.g = 1.0
-            marker.color.b = 0.0
-        marker.color.a = 1.0
-
-        return marker
-
-    def create_text_marker(self, cluster, marker_id, distance, width, is_target):
-        """Create text label showing distance and width"""
-        marker = Marker()
-        marker.header.frame_id = self.frame_id
-        marker.header.stamp = self.get_clock().now().to_msg()
-        marker.ns = "labels"
-        marker.id = marker_id
-        marker.type = Marker.TEXT_VIEW_FACING
-        marker.action = Marker.ADD
-
-        # Position text at center of cluster
-        avg_x = sum(p["x"] for p in cluster) / len(cluster)
-        avg_y = sum(p["y"] for p in cluster) / len(cluster)
-
-        marker.pose.position.x = avg_x
-        marker.pose.position.y = avg_y
-        marker.pose.position.z = 0.2  # Slightly above
-
-        marker.text = f"{distance:.2f}m\n{width:.2f}m wide"
-
-        marker.scale.z = 0.1  # Text height
-
-        # Color matches cluster
-        if is_target:
-            marker.color.r = 0.0
-            marker.color.g = 1.0
-            marker.color.b = 0.0
-        else:
-            marker.color.r = 1.0
             marker.color.g = 1.0
             marker.color.b = 0.0
         marker.color.a = 1.0
