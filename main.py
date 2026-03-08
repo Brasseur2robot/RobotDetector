@@ -13,14 +13,14 @@ class RobotDetector(Node):
         super().__init__("robot_detector")
 
         # Configuration
-        self.declare_parameter("front_angle_range", 30.0)  # Check ±30° in front
+        self.declare_parameter("front_angle_range", 35.0)  # Check ±30° in front
         self.declare_parameter("min_distance", 0.1)  # Minimum valid distance (m)
-        self.declare_parameter("max_distance", 5.0)  # Maximum detection range (m)
+        self.declare_parameter("max_distance", 1.0)  # Maximum detection range (m)
         self.declare_parameter(
             "cluster_tolerance", 0.1
         )  # Max gap between points in same robot (m)
-        self.declare_parameter("expected_robot_width", 0.3)  # Expected robot width (m)
-        self.declare_parameter("width_tolerance", 0.1)  # ±tolerance for width matching
+        self.declare_parameter("expected_robot_width", 0.2)  # Expected robot width (m)
+        self.declare_parameter("width_tolerance", 0.05)  # ±tolerance for width matching
 
         self.front_angle = self.get_parameter("front_angle_range").value
         self.min_dist = self.get_parameter("min_distance").value
