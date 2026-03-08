@@ -2,6 +2,8 @@
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
+from visualization_msgs.msg import Marker, MarkerArray
+from geometry_msgs.msg import Point
 import math
 import numpy as np
 
@@ -35,12 +37,17 @@ class RobotDetector(Node):
             10,
         )
 
+        self.marker_pub = self.create_publisher(MarkerArray, "/detected_robots", 10)
+
         self.get_logger().info("Robot Detector started!")
         self.get_logger().info(
             f"Looking for robot {self.expected_width}m wide in front ±{self.front_angle}°"
         )
 
     def scan_callback(self, msg):
+        # Get frame_id from laser scan for proper visualization
+        self.frame_id = msg.header.frame_id
+
         # self.get_logger().info(
         #     f"📦 Received scan: {len(msg.ranges)} points, "
         #     f"angle range: {math.degrees(msg.angle_min):.1f}° to {math.degrees(msg.angle_max):.1f}°"
@@ -85,16 +92,109 @@ class RobotDetector(Node):
         # Find clusters (potential robots)
         clusters = self.find_clusters(front_points)
 
+        # Create marker array for visualization
+        marker_array = MarkerArray()
+        marker_id = 0
+
         # Check each cluster
         for cluster in clusters:
             distance, width, angle = self.analyze_cluster(cluster)
 
             # Check if it matches our expected robot
-            if abs(width - self.expected_width) <= self.width_tol:
+            is_target = abs(width - self.expected_width) <= self.width_tol
+            if is_target:
                 self.get_logger().info(
                     f"🎯 ROBOT DETECTED! Distance: {distance:.2f}m, "
                     f"Width: {width:.2f}m, Angle: {angle:.1f}°"
                 )
+            # Create marker for this cluster
+            marker = self.create_cluster_marker(cluster, marker_id, is_target)
+            marker_array.markers.append(marker)
+            marker_id += 1
+
+            # Add text label
+            text_marker = self.create_text_marker(
+                cluster, marker_id, distance, width, is_target
+            )
+            marker_array.markers.append(text_marker)
+            marker_id += 1
+
+        # Publish markers
+        self.marker_pub.publish(marker_array)
+
+    def create_cluster_marker(self, cluster, marker_id, is_target):
+        """Create a visual marker for a cluster"""
+        marker = Marker()
+        marker.header.frame_id = self.frame_id
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = "clusters"
+        marker.id = marker_id
+        marker.type = Marker.LINE_STRIP
+        marker.action = Marker.ADD
+
+        # Draw lines connecting all points in cluster
+        for point in cluster:
+            p = Point()
+            p.x = point["x"]
+            p.y = point["y"]
+            p.z = 0.0
+            marker.points.append(p)
+
+        # Close the shape
+        p = Point()
+        p.x = cluster[0]["x"]
+        p.y = cluster[0]["y"]
+        p.z = 0.0
+        marker.points.append(p)
+
+        # Color: Green if target object, Yellow otherwise
+        marker.scale.x = 0.02  # Line width
+        if is_target:
+            marker.color.r = 0.0
+            marker.color.g = 1.0  # Green
+            marker.color.b = 0.0
+        else:
+            marker.color.r = 1.0  # Yellow
+            marker.color.g = 1.0
+            marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        return marker
+
+    def create_text_marker(self, cluster, marker_id, distance, width, is_target):
+        """Create text label showing distance and width"""
+        marker = Marker()
+        marker.header.frame_id = self.frame_id
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = "labels"
+        marker.id = marker_id
+        marker.type = Marker.TEXT_VIEW_FACING
+        marker.action = Marker.ADD
+
+        # Position text at center of cluster
+        avg_x = sum(p["x"] for p in cluster) / len(cluster)
+        avg_y = sum(p["y"] for p in cluster) / len(cluster)
+
+        marker.pose.position.x = avg_x
+        marker.pose.position.y = avg_y
+        marker.pose.position.z = 0.2  # Slightly above
+
+        marker.text = f"{distance:.2f}m\n{width:.2f}m wide"
+
+        marker.scale.z = 0.1  # Text height
+
+        # Color matches cluster
+        if is_target:
+            marker.color.r = 0.0
+            marker.color.g = 1.0
+            marker.color.b = 0.0
+        else:
+            marker.color.r = 1.0
+            marker.color.g = 1.0
+            marker.color.b = 0.0
+        marker.color.a = 1.0
+
+        return marker
 
     def get_front_sector(self, msg):
         """Extract points in front of robot (±front_angle degrees)"""
