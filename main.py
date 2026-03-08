@@ -88,12 +88,22 @@ class RobotDetector(Node):
             self.get_logger().info("Empty front sector data")
             return
 
-        # Find clusters (potential robots)
-        clusters = self.find_clusters(front_points)
-
         # Create marker array for visualization
         marker_array = MarkerArray()
         marker_id = 0
+
+        # Add detection zone visualization
+        detection_zone_marker = self.create_detection_zone_marker()
+        marker_array.markers.append(detection_zone_marker)
+
+        if len(front_points) == 0:
+            self.marker_pub.publish(
+                marker_array
+            )  # Still show zone even with no detections
+            return
+
+        # Find clusters (potential robots)
+        clusters = self.find_clusters(front_points)
 
         # Check each cluster
         for cluster in clusters:
