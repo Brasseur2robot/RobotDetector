@@ -163,6 +163,60 @@ class RobotDetector(Node):
 
         return marker
 
+    def create_detection_zone_marker(self):
+        """Create a visual marker showing the front detection zone"""
+        marker = Marker()
+        marker.header.frame_id = self.frame_id
+        marker.header.stamp = self.get_clock().now().to_msg()
+        marker.ns = "detection_zone"
+        marker.id = 9999  # Unique ID
+        marker.type = Marker.LINE_STRIP
+        marker.action = Marker.ADD
+
+        # Create arc showing detection zone
+        # Start at robot position
+        p = Point()
+        p.x = 0.0
+        p.y = 0.0
+        p.z = 0.0
+        marker.points.append(p)
+
+        # Draw left boundary
+        left_angle = math.radians(self.front_angle)
+        p = Point()
+        p.x = self.max_dist * math.cos(left_angle)
+        p.y = self.max_dist * math.sin(left_angle)
+        p.z = 0.0
+        marker.points.append(p)
+
+        # Draw arc at max distance
+        num_arc_points = 20
+        for i in range(num_arc_points + 1):
+            angle = math.radians(
+                self.front_angle - (2 * self.front_angle * i / num_arc_points)
+            )
+            p = Point()
+            p.x = self.max_dist * math.cos(angle)
+            p.y = self.max_dist * math.sin(angle)
+            p.z = 0.0
+            marker.points.append(p)
+
+        # Draw right boundary back to robot
+        p = Point()
+        p.x = 0.0
+        p.y = 0.0
+        p.z = 0.0
+        marker.points.append(p)
+
+        # Style: Semi-transparent blue
+        marker.scale.x = 0.03  # Line width
+        marker.color.r = 0.0
+        marker.color.g = 0.5
+        marker.color.b = 1.0  # Blue
+        marker.color.a = 0.5  # Semi-transparent
+
+        return marker
+
     def get_front_sector(self, msg):
         """Extract points in front of robot (±front_angle degrees)"""
         points = []
