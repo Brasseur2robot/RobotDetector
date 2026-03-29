@@ -68,8 +68,8 @@ class I2CSender(Node):
 
         data = []
 
-        for value in [distance, angle]:
-            if value not in (0, 65535):
+        for value in (distance, angle):
+            if value not in range(0, 65535):
                 self.get_logger().error("Value are not in a [0, 65535] range")
 
             # MSB and LSB conversion
