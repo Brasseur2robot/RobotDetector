@@ -5,6 +5,8 @@ from rclpy.node import Node
 from smbus2 import SMBus
 from std_msgs.msg import Float32MultiArray
 
+DEBUG = True
+
 
 class I2CSender(Node):
     def __init__(self):
@@ -12,7 +14,7 @@ class I2CSender(Node):
 
         # I2C Configuration
         self.i2c_bus = 1
-        self.esp32_address = 0x08  # Need to be checked
+        self.esp32_address = 0x08
 
         try:
             self.bus = SMBus(self.i2c_bus)
@@ -38,9 +40,10 @@ class I2CSender(Node):
         distance = msg.data[0]
         angle = msg.data[1]
 
-        self.get_logger().info(
-            f"Theses data will be sent: distance={distance}m, angle={angle}°"
-        )
+        if DEBUG:
+            self.get_logger().info(
+                f"Theses data will be sent: distance={distance}m, angle={angle}°"
+            )
 
     def i2c_sender(self, distance, angle):
 

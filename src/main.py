@@ -17,7 +17,7 @@ class ObjectDetector(Node):
         super().__init__("object_detector")
 
         # Node configuration
-        self.declare_parameter("front_angle_range", 35.0)  # Check ±30° in front
+        self.declare_parameter("front_angle_range", 35.0)  # Check ±35° in front
         self.declare_parameter("min_distance", 0.1)  # Minimum valid distance (m)
         self.declare_parameter("max_distance", 1.0)  # Maximum detection range (m)
         self.declare_parameter(
@@ -109,14 +109,17 @@ class ObjectDetector(Node):
             # Check if it matches our expected object based on expected_width and width_tol
             is_object = abs(width - self.expected_width) <= self.width_tol
             if is_object:
-                self.get_logger().info(
-                    f"🎯 object DETECTED! Distance: {distance:.2f}m, "
-                    f"Width: {width:.2f}m, Angle: {angle:.1f}°"
-                )
+                if DEBUG:
+                    self.get_logger().info(
+                        f"🎯 object DETECTED! Distance: {distance:.2f}m, "
+                        f"Width: {width:.2f}m, Angle: {angle:.1f + self.front_angle_range}°"
+                    )
 
                 # If an object is detected we send the distance and angle of the cluster to the I2C sender
                 msg = Float32MultiArray()
-                msg.data = [distance, angle]
+
+                # Angle are formatted to be in [0; 2*self.front_angle_range] range
+                msg.data = [distance, angle + self.front_angle_range]
                 self.i2c_data_pub.publish(msg)
 
             # Create marker for this cluster
