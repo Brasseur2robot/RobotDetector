@@ -46,7 +46,7 @@ class I2CSender(Node):
             )
 
         try:
-            self.send_i2c(distance_mm, angle_deg)
+            self.i2c_sender(distance_mm, angle_deg)
         except Exception as e:
             self.get_logger().error(f"I2C transmission failed: {e}")
 
