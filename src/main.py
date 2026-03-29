@@ -9,7 +9,7 @@ from sensor_msgs.msg import LaserScan
 from std_msgs.msg import Float32MultiArray
 from visualization_msgs.msg import Marker, MarkerArray
 
-DEBUG = False
+DEBUG = True
 
 
 class ObjectDetector(Node):
@@ -24,7 +24,7 @@ class ObjectDetector(Node):
             "cluster_tolerance", 0.1
         )  # Max gap between points in same object (m)
         self.declare_parameter(
-            "expected_object_width", 0.2
+            "expected_object_width", 0.1
         )  # Expected object width (m)
         self.declare_parameter("width_tolerance", 0.05)  # ±tolerance for width matching
 
