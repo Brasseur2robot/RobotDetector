@@ -42,14 +42,46 @@ class I2CSender(Node):
 
         if DEBUG:
             self.get_logger().info(
-                f"Theses data will be sent: distance={distance}m, angle={angle}°"
+                f"Theses data will be sent: distance={distance}mm, angle={angle}°"
             )
 
     def i2c_sender(self, distance, angle):
+        """Send 2 uint16_t values (4 bytes) via I2C
+
+        Bytes are send using Big-Endian so MSB comes first then LSB
+
+        I2C transmission format:
+            Byte 0: distance MSB
+            Byte 1: distance LSB
+            Byte 2: angle MSB
+            Byte 3: angle LSB
+
+        Args:
+            distance (int): Distance in millimeter [0; 65 535]
+            angle (int): Angle in degree [0; 65 535]
+        """
 
         data = []
 
-        # for value in [distance, angle]:
+        for value in [distance, angle]:
+            if value not in (0, 65535):
+                self.get_logger().error("Value are not in a [0, 65535] range")
+
+            # MSB and LSB conversion
+            high_byte = (value >> 8) & 0xFF
+            low_byte = value & 0xFF
+
+            data.append(high_byte)
+            data.append(low_byte)
+
+            # Sending data over I2C
+            self.bus.write_i2c_block_data(self.esp32_address, 0x00, data)
+
+            if DEBUG:
+                self.get_logger().debug(
+                    f"I2C bytes sent: {[hex(b) for b in data]} "
+                    f"(dist={distance}, angle={angle})"
+                )
 
     def __del__(self):
         """Clean up I2C bus when node is destroyed"""

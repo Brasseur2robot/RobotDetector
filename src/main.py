@@ -118,8 +118,9 @@ class ObjectDetector(Node):
                 # If an object is detected we send the distance and angle of the cluster to the I2C sender
                 msg = Float32MultiArray()
 
-                # Angle are formatted to be in [0; 2*self.front_angle] range
-                msg.data = [distance, angle + self.front_angle]
+                # Distance is formatted to be an int that represent millimeter
+                # Angle is formatted to be an int that represent a degree in [0; 2*self.front_angle] range
+                msg.data = [int(distance * 1000), int(angle + self.front_angle)]
                 self.i2c_data_pub.publish(msg)
 
             # Create marker for this cluster
