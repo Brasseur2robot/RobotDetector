@@ -1,138 +1,142 @@
 #!/usr/bin/env python3
+
+import math
+
 import rclpy
+from geometry_msgs.msg import Point
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
+from std_msgs.msg import Float32MultiArray
 from visualization_msgs.msg import Marker, MarkerArray
-from geometry_msgs.msg import Point
-import math
-import numpy as np
+
+DEBUG = False
 
 
-class RobotDetector(Node):
+class ObjectDetector(Node):
     def __init__(self):
-        super().__init__("robot_detector")
+        super().__init__("object_detector")
 
-        # Configuration
+        # Node configuration
         self.declare_parameter("front_angle_range", 35.0)  # Check ±30° in front
         self.declare_parameter("min_distance", 0.1)  # Minimum valid distance (m)
         self.declare_parameter("max_distance", 1.0)  # Maximum detection range (m)
         self.declare_parameter(
             "cluster_tolerance", 0.1
-        )  # Max gap between points in same robot (m)
-        self.declare_parameter("expected_robot_width", 0.2)  # Expected robot width (m)
+        )  # Max gap between points in same object (m)
+        self.declare_parameter(
+            "expected_object_width", 0.2
+        )  # Expected object width (m)
         self.declare_parameter("width_tolerance", 0.05)  # ±tolerance for width matching
 
         self.front_angle = self.get_parameter("front_angle_range").value
         self.min_dist = self.get_parameter("min_distance").value
         self.max_dist = self.get_parameter("max_distance").value
         self.cluster_tol = self.get_parameter("cluster_tolerance").value
-        self.expected_width = self.get_parameter("expected_robot_width").value
+        self.expected_width = self.get_parameter("expected_object_width").value
         self.width_tol = self.get_parameter("width_tolerance").value
 
-        # Subscribe to lidar
+        # Subscribe to lidar scan
         self.subscription = self.create_subscription(
             LaserScan,
-            "/scan",  # Adjust topic name if needed
+            "/scan",
             self.scan_callback,
             10,
         )
 
-        self.marker_pub = self.create_publisher(MarkerArray, "/detected_robots", 10)
+        # Create a publisher for visualization with rviz2
+        self.marker_pub = self.create_publisher(MarkerArray, "/detected_objects", 10)
 
-        self.get_logger().info("Robot Detector started!")
+        # Create a publisher for I2C sender
+        self.i2c_data_pub = self.create_publisher(Float32MultiArray, "/i2c_data", 10)
+
+        # Log the start
+        self.get_logger().info("object Detector started!")
         self.get_logger().info(
-            f"Looking for robot {self.expected_width}m wide in front ±{self.front_angle}°"
+            f"Looking for object {self.expected_width}m wide in front ±{self.front_angle}°"
         )
 
     def scan_callback(self, msg):
         # Get frame_id from laser scan for proper visualization
         self.frame_id = msg.header.frame_id
 
-        # self.get_logger().info(
-        #     f"📦 Received scan: {len(msg.ranges)} points, "
-        #     f"angle range: {math.degrees(msg.angle_min):.1f}° to {math.degrees(msg.angle_max):.1f}°"
-        # )
-
-        # Print detailed info only for first scan
-        if not hasattr(self, "_structure_printed"):
-            self.get_logger().info("=== LaserScan Structure ===")
-            self.get_logger().info(f"Frame: {msg.header.frame_id}")
-            self.get_logger().info(f"Points: {len(msg.ranges)}")
-            self.get_logger().info(
-                f"Angle range: {math.degrees(msg.angle_min):.1f}° to {math.degrees(msg.angle_max):.1f}°"
-            )
-            self.get_logger().info(
-                f"Angle step: {math.degrees(msg.angle_increment):.3f}°"
-            )
-            self.get_logger().info(
-                f"Distance range: {msg.range_min}m to {msg.range_max}m"
-            )
-            self.get_logger().info(f"Sample ranges: {msg.ranges[:10]}")
-            self.get_logger().info(f"Has intensities: {len(msg.intensities) > 0}")
-            self._structure_printed = True
+        if DEBUG:
+            # Print detailed info only for first scan
+            if not hasattr(self, "_structure_printed"):
+                self.get_logger().info("=== LaserScan Structure ===")
+                self.get_logger().info(f"Frame: {msg.header.frame_id}")
+                self.get_logger().info(f"Points: {len(msg.ranges)}")
+                self.get_logger().info(
+                    f"Angle range: {math.degrees(msg.angle_min):.1f}° to {math.degrees(msg.angle_max):.1f}°"
+                )
+                self.get_logger().info(
+                    f"Angle step: {math.degrees(msg.angle_increment):.3f}°"
+                )
+                self.get_logger().info(
+                    f"Distance range: {msg.range_min}m to {msg.range_max}m"
+                )
+                self.get_logger().info(f"Sample ranges: {msg.ranges[:10]}")
+                self.get_logger().info(f"Has intensities: {len(msg.intensities) > 0}")
+                self._structure_printed = True
 
         # Extract front sector data
         front_points = self.get_front_sector(msg)
 
-        # Full message
-        # self.get_logger().info(f"Full message:\n{msg}")
-
-        # Print front points in detail
-        # for p in front_points[:5]:  # First 5 front points
-        #     self.get_logger().info(
-        #         f"  Point: x={p['x']:.2f}m, y={p['y']:.2f}m, "
-        #         f"distance={p['distance']:.2f}m, angle={p['angle']:.1f}°"
-        #     )
-
+        # If nothing is detected just leave
         if len(front_points) == 0:
             self.get_logger().info("Empty front sector data")
             return
 
-        # Create marker array for visualization
+        # Create marker_array for visualization
         marker_array = MarkerArray()
         marker_id = 0
 
-        # Add detection zone visualization
+        # Add detection_zone_marker for visualization
         detection_zone_marker = self.create_detection_zone_marker()
         marker_array.markers.append(detection_zone_marker)
 
-        if len(front_points) == 0:
-            self.marker_pub.publish(
-                marker_array
-            )  # Still show zone even with no detections
-            return
+        # # Still show zone even with no detections
+        # if len(front_points) == 0:
+        #     self.marker_pub.publish(marker_array)
+        #     return
 
-        # Find clusters (potential robots)
+        # Find clusters (potential objects)
         clusters = self.find_clusters(front_points)
 
-        # Check each cluster
+        # Check if there is a object in each cluster
         for cluster in clusters:
             distance, width, angle = self.analyze_cluster(cluster)
 
-            # Check if it matches our expected robot
-            is_target = abs(width - self.expected_width) <= self.width_tol
-            if is_target:
+            # Check if it matches our expected object based on expected_width and width_tol
+            is_object = abs(width - self.expected_width) <= self.width_tol
+            if is_object:
                 self.get_logger().info(
-                    f"🎯 ROBOT DETECTED! Distance: {distance:.2f}m, "
+                    f"🎯 object DETECTED! Distance: {distance:.2f}m, "
                     f"Width: {width:.2f}m, Angle: {angle:.1f}°"
                 )
+
+                # If an object is detected we send the distance and angle of the cluster to the I2C sender
+                msg = Float32MultiArray()
+                msg.data = [distance, angle]
+                self.i2c_data_pub.publish()
+
             # Create marker for this cluster
-            marker = self.create_cluster_marker(cluster, marker_id, is_target)
+            marker = self.create_cluster_marker(cluster, marker_id, is_object)
             marker_array.markers.append(marker)
             marker_id += 1
 
         # Publish markers
         self.marker_pub.publish(marker_array)
 
-    def create_cluster_marker(self, cluster, marker_id, is_target):
+    def create_cluster_marker(self, cluster, marker_id, is_object):
         """Create a visual marker for a cluster"""
-        marker = Marker()
-        marker.header.frame_id = self.frame_id
-        marker.header.stamp = self.get_clock().now().to_msg()
-        marker.ns = "clusters"
-        marker.id = marker_id
-        marker.type = Marker.LINE_STRIP
-        marker.action = Marker.ADD
+
+        cluster_marker = Marker()
+        cluster_marker.header.frame_id = self.frame_id
+        cluster_marker.header.stamp = self.get_clock().now().to_msg()
+        cluster_marker.ns = "clusters"
+        cluster_marker.id = marker_id
+        cluster_marker.type = Marker.LINE_STRIP
+        cluster_marker.action = Marker.ADD
 
         # Draw lines connecting all points in cluster
         for point in cluster:
@@ -140,31 +144,32 @@ class RobotDetector(Node):
             p.x = point["x"]
             p.y = point["y"]
             p.z = 0.0
-            marker.points.append(p)
+            cluster_marker.points.append(p)
 
         # Close the shape
         p = Point()
         p.x = cluster[0]["x"]
         p.y = cluster[0]["y"]
         p.z = 0.0
-        marker.points.append(p)
+        cluster_marker.points.append(p)
 
-        # Color: Green if target object, Yellow otherwise
-        marker.scale.x = 0.02  # Line width
-        if is_target:
-            marker.color.r = 0.0
-            marker.color.g = 1.0  # Green
-            marker.color.b = 0.0
+        # Color: green if target object, red otherwise
+        cluster_marker.scale.x = 0.02  # Line width
+        if is_object:
+            cluster_marker.color.r = 0.0
+            cluster_marker.color.g = 1.0  # Green
+            cluster_marker.color.b = 0.0
         else:
-            marker.color.r = 1.0  # Yellow
-            marker.color.g = 1.0
-            marker.color.b = 0.0
-        marker.color.a = 1.0
+            cluster_marker.color.r = 1.0  # Red
+            cluster_marker.color.g = 0.0
+            cluster_marker.color.b = 0.0
+        cluster_marker.color.a = 1.0
 
-        return marker
+        return cluster_marker
 
     def create_detection_zone_marker(self):
         """Create a visual marker showing the front detection zone"""
+
         marker = Marker()
         marker.header.frame_id = self.frame_id
         marker.header.stamp = self.get_clock().now().to_msg()
@@ -174,7 +179,7 @@ class RobotDetector(Node):
         marker.action = Marker.ADD
 
         # Create arc showing detection zone
-        # Start at robot position
+        # Start at object position
         p = Point()
         p.x = 0.0
         p.y = 0.0
@@ -201,7 +206,7 @@ class RobotDetector(Node):
             p.z = 0.0
             marker.points.append(p)
 
-        # Draw right boundary back to robot
+        # Draw right boundary back to object
         p = Point()
         p.x = 0.0
         p.y = 0.0
@@ -218,7 +223,8 @@ class RobotDetector(Node):
         return marker
 
     def get_front_sector(self, msg):
-        """Extract points in front of robot (±front_angle degrees)"""
+        """Extract points in front of object (±front_angle degrees)"""
+
         points = []
 
         for i, distance in enumerate(msg.ranges):
@@ -250,7 +256,8 @@ class RobotDetector(Node):
         return points
 
     def find_clusters(self, points):
-        """Group nearby points into clusters (robots)"""
+        """Group nearby points into clusters (objects)"""
+
         if len(points) == 0:
             return []
 
@@ -270,11 +277,11 @@ class RobotDetector(Node):
             gap = math.sqrt(dx * dx + dy * dy)
 
             if gap <= self.cluster_tol:
-                # Same robot
+                # Same object
                 current_cluster.append(curr_point)
             else:
-                # New robot - save previous cluster
-                if len(current_cluster) >= 3:  # Need at least 3 points for valid robot
+                # New object - save previous cluster
+                if len(current_cluster) >= 3:  # Need at least 3 points for valid object
                     clusters.append(current_cluster)
                 current_cluster = [curr_point]
 
@@ -286,7 +293,8 @@ class RobotDetector(Node):
 
     def analyze_cluster(self, cluster):
         """Calculate distance, width, and angle of a cluster"""
-        # Average distance to robot
+
+        # Average distance to object
         avg_distance = sum(p["distance"] for p in cluster) / len(cluster)
 
         # Calculate width (distance between leftmost and rightmost points)
@@ -305,7 +313,7 @@ class RobotDetector(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    detector = RobotDetector()
+    detector = ObjectDetector()
 
     try:
         rclpy.spin(detector)
