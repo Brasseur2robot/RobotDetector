@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from smbus2 import SMBus
-from std_msgs.msg import Int16MultiArray
+from std_msgs.msg import UInt16MultiArray
 
 DEBUG = True
 
@@ -25,7 +25,7 @@ class I2CSender(Node):
 
         # Subscribe to the i2c_data
         self.subscription = self.create_subscription(
-            Int16MultiArray, "/i2c_data", self.data_callback, 10
+            UInt16MultiArray, "/i2c_data", self.data_callback, 10
         )
 
         self.get_logger().info("I2C Sender ready!")
@@ -37,13 +37,18 @@ class I2CSender(Node):
             self.get_logger().warn(f"Expected 2 values, got {len(msg.data)}")
             return
 
-        distance = msg.data[0]
-        angle = msg.data[1]
+        distance_mm = msg.data[0]
+        angle_deg = msg.data[1]
 
         if DEBUG:
             self.get_logger().info(
-                f"Theses data will be sent: distance={distance}mm, angle={angle}°"
+                f"Theses data will be sent: distance={distance_mm}mm, angle={angle_deg}°"
             )
+
+        try:
+            self.send_i2c(distance_mm, angle_deg)
+        except Exception as e:
+            self.get_logger().error(f"I2C transmission failed: {e}")
 
     def i2c_sender(self, distance, angle):
         """Send 2 uint16_t values (4 bytes) via I2C

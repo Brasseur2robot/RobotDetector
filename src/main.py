@@ -6,7 +6,7 @@ import rclpy
 from geometry_msgs.msg import Point
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
-from std_msgs.msg import Int16MultiArray
+from std_msgs.msg import UInt16MultiArray
 from visualization_msgs.msg import Marker, MarkerArray
 
 DEBUG = True
@@ -47,7 +47,7 @@ class ObjectDetector(Node):
         self.marker_pub = self.create_publisher(MarkerArray, "/detected_objects", 10)
 
         # Create a publisher for I2C sender
-        self.i2c_data_pub = self.create_publisher(Int16MultiArray, "/i2c_data", 10)
+        self.i2c_data_pub = self.create_publisher(UInt16MultiArray, "/i2c_data", 10)
 
         # Log the start
         self.get_logger().info("object Detector started!")
@@ -116,7 +116,7 @@ class ObjectDetector(Node):
                     )
 
                 # If an object is detected we send the distance and angle of the cluster to the I2C sender
-                msg = Int16MultiArray()
+                msg = UInt16MultiArray()
 
                 # Distance is formatted to be an int that represent millimeter
                 # Angle is formatted to be an int that represent a degree in [0; 2*self.front_angle] range
