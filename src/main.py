@@ -112,7 +112,7 @@ class ObjectDetector(Node):
                 if DEBUG:
                     self.get_logger().info(
                         f"🎯 object DETECTED! Distance: {distance:.2f}m, "
-                        f"Width: {width:.2f}m, Angle: {angle:.1f + self.front_angle}°"
+                        f"Width: {width:.2f}m, Angle: {(angle + self.front_angle):.1f}°"
                     )
 
                 # If an object is detected we send the distance and angle of the cluster to the I2C sender
