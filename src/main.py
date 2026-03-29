@@ -52,7 +52,7 @@ class ObjectDetector(Node):
         # Log the start
         self.get_logger().info("object Detector started!")
         self.get_logger().info(
-            f"Looking for object {self.expected_width}m wide in front ±{self.front_angle}°"
+            f"Looking for object {self.expected_width}m wide in front in a [0; {2 * self.front_angle}]° range"
         )
 
     def scan_callback(self, msg):
@@ -112,14 +112,14 @@ class ObjectDetector(Node):
                 if DEBUG:
                     self.get_logger().info(
                         f"🎯 object DETECTED! Distance: {distance:.2f}m, "
-                        f"Width: {width:.2f}m, Angle: {angle:.1f + self.front_angle_range}°"
+                        f"Width: {width:.2f}m, Angle: {angle:.1f + self.front_angle}°"
                     )
 
                 # If an object is detected we send the distance and angle of the cluster to the I2C sender
                 msg = Float32MultiArray()
 
-                # Angle are formatted to be in [0; 2*self.front_angle_range] range
-                msg.data = [distance, angle + self.front_angle_range]
+                # Angle are formatted to be in [0; 2*self.front_angle] range
+                msg.data = [distance, angle + self.front_angle]
                 self.i2c_data_pub.publish(msg)
 
             # Create marker for this cluster
