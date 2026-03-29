@@ -2,8 +2,8 @@
 
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32MultiArray
 from smbus2 import SMBus
+from std_msgs.msg import Float32MultiArray
 
 
 class I2CSender(Node):
@@ -46,8 +46,7 @@ class I2CSender(Node):
 
         data = []
 
-        for value in [distance, angle]:
-
+        # for value in [distance, angle]:
 
     def __del__(self):
         """Clean up I2C bus when node is destroyed"""
