@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from smbus2 import SMBus
-from std_msgs.msg import Float32MultiArray
+from std_msgs.msg import Int16MultiArray
 
 DEBUG = True
 
@@ -25,7 +25,7 @@ class I2CSender(Node):
 
         # Subscribe to the i2c_data
         self.subscription = self.create_subscription(
-            Float32MultiArray, "/i2c_data", self.data_callback, 10
+            Int16MultiArray, "/i2c_data", self.data_callback, 10
         )
 
         self.get_logger().info("I2C Sender ready!")
