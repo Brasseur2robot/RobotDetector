@@ -82,7 +82,7 @@ class UARTSender(Node):
 
     def uart_sender(self, distance, angle):
 
-        message = f"{distance};{angle}"
+        message = f"{distance};{angle}\n"
 
         self.ser.write(message.encode())
 
