@@ -9,7 +9,7 @@ void setup() {
   delay(2000);
 
   // initialize the RaspiSerial to the pins
-  RaspiSerial.begin(11500, SERIAL_8N1, RaspiSerialRX, RaspiSerialTX);
+  RaspiSerial.begin(115200, SERIAL_8N1, RaspiSerialRX, RaspiSerialTX);
 
   Serial.println("ESP32 ready");
 }
