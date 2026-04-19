@@ -9,6 +9,14 @@ DEBUG = True
 
 
 class I2CSender(Node):
+    """Receive the distance and the angle of a detected object and send it via I2C interface
+
+    Attributes:
+        i2c_bus: I2C bus that will be open and used
+        esp32_address: Software defined esp32 slave address
+        subscription: ROS2 subscription to the i2c_data topic for the object detected data
+    """
+
     def __init__(self):
         super().__init__("i2c_sender")
 
@@ -31,6 +39,11 @@ class I2CSender(Node):
         self.get_logger().info("I2C Sender ready!")
 
     def data_callback(self, msg):
+        """Extract the value from the msg send by the i2c_data topic when data are received
+
+        Args:
+            msg (std_msgs.msg.UInt16MultiArray): A specific message with the distance in millimeter and angle in degree inside array of data
+        """
 
         # Extract values from array
         if len(msg.data) != 2:
@@ -45,6 +58,7 @@ class I2CSender(Node):
                 f"Theses data will be sent: distance={distance_mm}mm, angle={angle_deg}°"
             )
 
+        # Send the data using the I2C interface
         try:
             self.i2c_sender(distance_mm, angle_deg)
         except Exception as e:

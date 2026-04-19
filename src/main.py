@@ -35,7 +35,7 @@ class ObjectDetector(Node):
         self.expected_width = self.get_parameter("expected_object_width").value
         self.width_tol = self.get_parameter("width_tolerance").value
 
-        # Subscribe to lidar scan
+        # Subscribe to lidar scan from ldlidar_stl_ros2 project
         self.subscription = self.create_subscription(
             LaserScan,
             "/scan",
@@ -46,16 +46,21 @@ class ObjectDetector(Node):
         # Create a publisher for visualization with rviz2
         self.marker_pub = self.create_publisher(MarkerArray, "/detected_objects", 10)
 
-        # Create a publisher for I2C sender
-        self.i2c_data_pub = self.create_publisher(UInt16MultiArray, "/i2c_data", 10)
+        # Create a publisher for UART sender
+        self.uart_data_pub = self.create_publisher(UInt16MultiArray, "/uart_data", 10)
 
-        # Log the start
         self.get_logger().info("object Detector started!")
         self.get_logger().info(
             f"Looking for object {self.expected_width}m wide in front in a [0; {2 * self.front_angle}]° range"
         )
 
     def scan_callback(self, msg):
+        """
+
+        Args:
+            msg (std_msgs.msg.LaserScan): [TODO:description]
+        """
+
         # Get frame_id from laser scan for proper visualization
         self.frame_id = msg.header.frame_id
 
@@ -94,10 +99,10 @@ class ObjectDetector(Node):
         detection_zone_marker = self.create_detection_zone_marker()
         marker_array.markers.append(detection_zone_marker)
 
-        # # Still show zone even with no detections
-        # if len(front_points) == 0:
-        #     self.marker_pub.publish(marker_array)
-        #     return
+        # Still show zone even with no detections
+        if len(front_points) == 0:
+            self.marker_pub.publish(marker_array)
+            return
 
         # Find clusters (potential objects)
         clusters = self.find_clusters(front_points)
@@ -111,17 +116,17 @@ class ObjectDetector(Node):
             if is_object:
                 if DEBUG:
                     self.get_logger().info(
-                        f"🎯 object DETECTED! Distance: {distance:.2f}m, "
+                        f"Object DETECTED! Distance: {distance:.2f}m, "
                         f"Width: {width:.2f}m, Angle: {(angle + self.front_angle):.1f}°"
                     )
 
-                # If an object is detected we send the distance and angle of the cluster to the I2C sender
+                # If an object is detected we send the distance and angle of the cluster to the UART sender
                 msg = UInt16MultiArray()
 
                 # Distance is formatted to be an int that represent millimeter
                 # Angle is formatted to be an int that represent a degree in [0; 2*self.front_angle] range
                 msg.data = [int(distance * 1000), int(angle + self.front_angle)]
-                self.i2c_data_pub.publish(msg)
+                self.uart_data_pub.publish(msg)
 
             # Create marker for this cluster
             marker = self.create_cluster_marker(cluster, marker_id, is_object)
@@ -260,7 +265,14 @@ class ObjectDetector(Node):
         return points
 
     def find_clusters(self, points):
-        """Group nearby points into clusters (objects)"""
+        """Group nearby points into clusters, a cluster is very likely an object
+
+        Args:
+            points ([TODO:parameter]): [TODO:description]
+
+        Returns:
+            clusters: List of detected cluster. Cluster are a list of points.
+        """
 
         if len(points) == 0:
             return []
@@ -296,7 +308,16 @@ class ObjectDetector(Node):
         return clusters
 
     def analyze_cluster(self, cluster):
-        """Calculate distance, width, and angle of a cluster"""
+        """Calculate distance, width and angle of a cluster
+
+        Args:
+            cluster ([TODO:parameter]): List point that are closed to each other
+
+        Returns:
+            avg_distance: Average distance of the cluster
+            width: Width of the cluster
+            avg_angle: Average angle of the cluster
+        """
 
         # Average distance to object
         avg_distance = sum(p["distance"] for p in cluster) / len(cluster)
