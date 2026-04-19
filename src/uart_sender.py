@@ -19,6 +19,10 @@ And then reboot:
 
 Finally check if port exist:
     ls -l /dev/serial0
+
+If `Permission denied` error:
+    Add user to the dialout group
+    chmod 777 /dev/serial0
 """
 
 DEBUG = True
