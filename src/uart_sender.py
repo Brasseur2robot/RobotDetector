@@ -29,7 +29,12 @@ DEBUG = True
 
 
 class UARTSender(Node):
-    """Receive the distance and the angle of a detected object and send it via UART interface"""
+    """Receive the distance and the angle of a detected object and send it via UART interface
+
+    Attributes:
+        port: the UART port of the raspi (usually /dev/serial0
+        subscription: ROS2 subscription to the i2c_data topic for the object detected data
+    """
 
     def __init__(self):
         super().__init__("uart_sender")
@@ -80,7 +85,12 @@ class UARTSender(Node):
         except Exception as e:
             self.get_logger().error(f"UART transmission failed: {e}")
 
-    def uart_sender(self, distance, angle):
+    def uart_sender(self, distance: int, angle: int):
+        """Send the distance and angle using UART link
+        Args:
+            distance: Distance in millimeter
+            angle: Angle in degree
+        """
 
         message = f"{distance};{angle}\n"
 
