@@ -34,7 +34,7 @@ class UARTSender(Node):
 
         try:
             self.ser = serial.Serial(
-                port=self.PORT,
+                port=self.port,
                 baudrate=115200,
                 timeout=1,
             )
