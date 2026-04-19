@@ -84,7 +84,7 @@ class UARTSender(Node):
 
         message = f"{distance};{angle}\n"
 
-        self.ser.write(message.encode())
+        self.ser.write(message.encode("utf-8"))
 
 
 def main(args=None):
